@@ -1,70 +1,87 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns'
+import { ptBR } from 'date-fns/locale'
 
 export default function Dashboard1() {
-  const [stats, setStats]     = useState(null)
-  const [alertas, setAlertas] = useState([])
+  const [stats, setStats]         = useState(null)
+  const [alertas, setAlertas]     = useState([])
   const [lancamentos, setLancamentos] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [chartData, setChartData] = useState([])
+  const [loading, setLoading]     = useState(true)
 
   useEffect(() => { loadData() }, [])
 
   async function loadData() {
     setLoading(true)
     const now = new Date()
-    const mes = now.toISOString().slice(0, 7) // YYYY-MM
+    const ano = now.getFullYear()
+    const mesNum = now.getMonth() + 1
+    const ini = `${ano}-${String(mesNum).padStart(2,'0')}-01`
+    const ultimoDia = new Date(ano, mesNum, 0).getDate()
+    const fim = `${ano}-${String(mesNum).padStart(2,'0')}-${String(ultimoDia).padStart(2,'0')}`
 
-    const [{ data: abast }, { data: oleo }, { data: manut }, { data: conds }, { data: docs }, { data: cnhs }] = await Promise.all([
-      supabase.from('abastecimentos').select('valor_total, data').gte('data', mes + '-01'),
-      supabase.from('trocas_oleo').select('valor, data').gte('data', mes + '-01'),
-      supabase.from('manutencoes').select('valor_total, data, condutor_id, tipo_reparo, forma_pagamento, status_pagamento').gte('data_servico', mes + '-01'),
-      supabase.from('condutores').select('id, nome, marca_veiculo, placa, cnh_vencimento'),
+    const [{ data: abast }, { data: oleo }, { data: manut }, { data: docs }, { data: cnhs }] = await Promise.all([
+      supabase.from('abastecimentos').select('valor_total, data').gte('data', ini).lte('data', fim),
+      supabase.from('trocas_oleo').select('valor, data').gte('data', ini).lte('data', fim),
+      supabase.from('manutencoes').select('valor_total, data_servico, tipo_reparo, forma_pagamento, status_pagamento').gte('data_servico', ini).lte('data_servico', fim),
       supabase.from('documentos').select('*').order('vencimento', { ascending: true }),
-      supabase.from('condutores').select('nome, cnh_vencimento').not('cnh_vencimento', 'is', null),
+      supabase.from('condutores').select('nome, cnh_vencimento').eq('is_admin', false).not('cnh_vencimento', 'is', null),
     ])
 
     const totalAbast = (abast || []).reduce((s, r) => s + (r.valor_total || 0), 0)
     const totalOleo  = (oleo  || []).reduce((s, r) => s + (r.valor    || 0), 0)
     const totalManut = (manut || []).reduce((s, r) => s + (r.valor_total || 0), 0)
-
     setStats({ totalAbast, totalOleo, totalManut, total: totalAbast + totalOleo + totalManut })
 
-    // Alertas: CNH vencendo em 30 dias
+    // Alertas CNH e documentos
     const alertList = []
     const hoje = new Date();
     (cnhs || []).forEach(c => {
       const diff = Math.ceil((new Date(c.cnh_vencimento) - hoje) / 86400000)
-      if (diff <= 30) alertList.push({ tipo: 'CNH', msg: `CNH vencendo em ${diff > 0 ? diff + ' dias' : 'VENCIDA'} · ${c.nome}`, grave: diff <= 0 })
+      if (diff <= 30) alertList.push({ msg: `CNH vencendo em ${diff > 0 ? diff + ' dias' : 'VENCIDA'} · ${c.nome}`, grave: diff <= 0 })
     });
     (docs || []).forEach(d => {
       const diff = Math.ceil((new Date(d.vencimento) - hoje) / 86400000)
-      if (diff <= (d.alertar_dias || 30)) alertList.push({ tipo: 'Doc', msg: `${d.tipo_documento} vencendo em ${diff > 0 ? diff + ' dias' : 'VENCIDO'}`, grave: diff <= 0 })
+      if (diff <= (d.alertar_dias || 30)) alertList.push({ msg: `${d.tipo_documento} vencendo em ${diff > 0 ? diff + ' dias' : 'VENCIDO'}`, grave: diff <= 0 })
     })
     setAlertas(alertList)
 
-    // Últimos lançamentos: combina abastecimentos + manutenções
+    // Últimos lançamentos
     const lancList = [
       ...(abast || []).map(r => ({ data: r.data, tipo: 'Combustível', valor: r.valor_total })),
-      ...(manut  || []).map(r => ({ data: r.data_servico || r.data, tipo: r.tipo_reparo || 'Manutenção', valor: r.valor_total })),
+      ...(manut  || []).map(r => ({ data: r.data_servico, tipo: r.tipo_reparo || 'Manutenção', valor: r.valor_total })),
       ...(oleo   || []).map(r => ({ data: r.data, tipo: 'Troca de óleo', valor: r.valor })),
     ].sort((a, b) => new Date(b.data) - new Date(a.data)).slice(0, 8)
     setLancamentos(lancList)
 
+    // Gráfico real dos últimos 6 meses
+    const hist = await Promise.all(
+      Array.from({ length: 6 }, (_, i) => {
+        const d = subMonths(new Date(ano, mesNum - 1, 1), 5 - i)
+        const s = format(startOfMonth(d), 'yyyy-MM-dd')
+        const e = format(endOfMonth(d), 'yyyy-MM-dd')
+        return Promise.all([
+          supabase.from('abastecimentos').select('valor_total').gte('data', s).lte('data', e),
+          supabase.from('trocas_oleo').select('valor').gte('data', s).lte('data', e),
+          supabase.from('manutencoes').select('valor_total').gte('data_servico', s).lte('data_servico', e),
+        ]).then(([a, o, m]) => ({
+          mes: format(d, 'MMM', { locale: ptBR }),
+          valor: (a.data || []).reduce((acc, x) => acc + (x.valor_total || 0), 0)
+               + (o.data || []).reduce((acc, x) => acc + (x.valor || 0), 0)
+               + (m.data || []).reduce((acc, x) => acc + (x.valor_total || 0), 0)
+        }))
+      })
+    )
+    setChartData(hist)
     setLoading(false)
   }
-
-  // Dados para gráfico dos últimos 6 meses
-  const chartData = Array.from({ length: 6 }, (_, i) => {
-    const d = new Date(); d.setMonth(d.getMonth() - (5 - i))
-    return { mes: d.toLocaleString('pt-BR', { month: 'short' }), valor: Math.floor(Math.random() * 3000 + 1500) }
-  })
 
   if (loading) return <div className="loading"><div className="spinner" />Carregando...</div>
 
   return (
     <div>
-      {/* Métricas */}
       <div className="metrics">
         <div className="metric">
           <div className="metric-label"><i className="ti ti-gas-station" aria-hidden="true" />Combustível (mês)</div>
@@ -85,7 +102,6 @@ export default function Dashboard1() {
       </div>
 
       <div className="g2">
-        {/* Alertas */}
         <div className="card">
           <div className="section-title"><i className="ti ti-alert-triangle" style={{ color: 'var(--red)' }} aria-hidden="true" />Alertas ativos</div>
           {alertas.length === 0
@@ -99,15 +115,14 @@ export default function Dashboard1() {
           }
         </div>
 
-        {/* Gráfico mensal */}
         <div className="card">
-          <div className="section-title"><i className="ti ti-chart-bar" aria-hidden="true" />Combustível — últimos 6 meses</div>
+          <div className="section-title"><i className="ti ti-chart-bar" aria-hidden="true" />Gastos totais — últimos 6 meses</div>
           <ResponsiveContainer width="100%" height={140}>
             <BarChart data={chartData} barSize={22}>
               <XAxis dataKey="mes" tick={{ fontSize: 11, fill: 'var(--t3)' }} axisLine={false} tickLine={false} />
               <YAxis hide />
               <Tooltip
-                formatter={v => [`R$ ${v}`, 'Gasto']}
+                formatter={v => [`R$ ${v.toFixed(0)}`, 'Total']}
                 contentStyle={{ fontSize: 12, background: 'var(--bg0)', border: '.5px solid var(--bd)', borderRadius: 8 }}
               />
               <Bar dataKey="valor" fill="var(--blue)" radius={[4, 4, 0, 0]} />
@@ -116,7 +131,6 @@ export default function Dashboard1() {
         </div>
       </div>
 
-      {/* Últimos lançamentos */}
       <div className="card">
         <div className="section-title"><i className="ti ti-list-details" aria-hidden="true" />Últimos lançamentos</div>
         <div className="table-wrap">
