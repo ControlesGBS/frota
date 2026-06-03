@@ -26,54 +26,71 @@ export default function Dashboard2() {
 
   async function loadData() {
     setLoading(true)
-    const ini = mes + '-01'
-    const fim = new Date(new Date(ini).getFullYear(), new Date(ini).getMonth() + 1, 0).toISOString().slice(0, 10)
 
-    const [{ data: abast }, { data: oleo }, { data: manut }, { data: vistoria }] = await Promise.all([
+    // Calcula início e fim do mês corretamente
+    const [ano, mesNum] = mes.split('-').map(Number)
+    const ini = `${mes}-01`
+    const ultimoDia = new Date(ano, mesNum, 0).getDate()
+    const fim = `${mes}-${String(ultimoDia).padStart(2, '0')}`
+
+    const [r1, r2, r3, r4] = await Promise.all([
       supabase.from('abastecimentos').select('*').eq('condutor_id', selectedId).gte('data', ini).lte('data', fim).order('data'),
       supabase.from('trocas_oleo').select('*').eq('condutor_id', selectedId).gte('data', ini).lte('data', fim).order('data'),
       supabase.from('manutencoes').select('*').eq('condutor_id', selectedId).gte('data_servico', ini).lte('data_servico', fim).order('data_servico'),
       supabase.from('vistorias').select('*').eq('condutor_id', selectedId).order('data_vistoria', { ascending: false }).limit(1),
     ])
 
+    const abast   = r1.data || []
+    const oleo    = r2.data || []
+    const manut   = r3.data || []
+    const vistoria = r4.data || []
+
     // Histórico 6 meses combustível
     const fuelHistory = await Promise.all(
       Array.from({ length: 6 }, (_, i) => {
-    const d = subMonths(new Date(mes + '-01'), 5 - i - 0)
+        const d = subMonths(new Date(ano, mesNum - 1, 1), 5 - i)
         const s = format(startOfMonth(d), 'yyyy-MM-dd')
         const e = format(endOfMonth(d), 'yyyy-MM-dd')
-        return supabase.from('abastecimentos').select('valor_total').eq('condutor_id', selectedId).gte('data', s).lte('data', e)
+        return supabase.from('abastecimentos')
+          .select('valor_total')
+          .eq('condutor_id', selectedId)
+          .gte('data', s)
+          .lte('data', e)
           .then(({ data: r }) => ({
             mes: format(d, 'MMM', { locale: ptBR }),
-            valor: (r || []).reduce((s, x) => s + (x.valor_total || 0), 0)
+            valor: (r || []).reduce((acc, x) => acc + (x.valor_total || 0), 0)
           }))
       })
     )
 
+    // Histórico 6 meses manutenção
     const manutHistory = await Promise.all(
       Array.from({ length: 6 }, (_, i) => {
-        const d = subMonths(new Date(mes + '-01'), 5 - i)
+        const d = subMonths(new Date(ano, mesNum - 1, 1), 5 - i)
         const s = format(startOfMonth(d), 'yyyy-MM-dd')
         const e = format(endOfMonth(d), 'yyyy-MM-dd')
-        return supabase.from('manutencoes').select('valor_total').eq('condutor_id', selectedId).gte('data_servico', s).lte('data_servico', e)
+        return supabase.from('manutencoes')
+          .select('valor_total')
+          .eq('condutor_id', selectedId)
+          .gte('data_servico', s)
+          .lte('data_servico', e)
           .then(({ data: r }) => ({
             mes: format(d, 'MMM', { locale: ptBR }),
-            valor: (r || []).reduce((s, x) => s + (x.valor_total || 0), 0)
+            valor: (r || []).reduce((acc, x) => acc + (x.valor_total || 0), 0)
           }))
       })
     )
 
-    const totalAbast = (abast || []).reduce((s, r) => s + (r.valor_total || 0), 0)
-    const totalOleo  = (oleo  || []).reduce((s, r) => s + (r.valor    || 0), 0)
-    const totalManut = (manut || []).reduce((s, r) => s + (r.valor_total || 0), 0)
+    const totalAbast = abast.reduce((s, r) => s + (r.valor_total || 0), 0)
+    const totalOleo  = oleo.reduce((s, r) => s + (r.valor || 0), 0)
+    const totalManut = manut.reduce((s, r) => s + (r.valor_total || 0), 0)
 
-    setData({ abast: abast || [], oleo: oleo || [], manut: manut || [], vistoria: vistoria?.[0] || null, totalAbast, totalOleo, totalManut, fuelHistory, manutHistory })
+    setData({ abast, oleo, manut, vistoria: vistoria[0] || null, totalAbast, totalOleo, totalManut, fuelHistory, manutHistory })
     setLoading(false)
   }
 
   const condutor = condutores.find(c => c.id === selectedId)
 
-  // CNH status
   function cnhStatus(venc) {
     if (!venc) return { label: 'Não informado', cls: 'badge-info' }
     const diff = Math.ceil((new Date(venc) - new Date()) / 86400000)
@@ -90,7 +107,6 @@ export default function Dashboard2() {
 
   return (
     <div>
-      {/* Seletores */}
       <div className="card">
         <div className="g2">
           <div className="fg" style={{ marginBottom: 0 }}>
@@ -116,7 +132,6 @@ export default function Dashboard2() {
 
       {!loading && data && condutor && (
         <>
-          {/* CNH + Vistoria */}
           <div className="g2">
             <div className="card">
               <div className="section-title" style={{ fontSize: 12 }}><i className="ti ti-id" aria-hidden="true" />CNH do condutor</div>
@@ -156,7 +171,6 @@ export default function Dashboard2() {
             </div>
           </div>
 
-          {/* Métricas */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 14 }}>
             <div className="metric">
               <div className="metric-label"><i className="ti ti-gas-station" aria-hidden="true" />Combustível</div>
@@ -175,7 +189,6 @@ export default function Dashboard2() {
             </div>
           </div>
 
-          {/* Gráficos */}
           <div className="g2">
             <div className="card">
               <div className="section-title" style={{ fontSize: 12 }}><i className="ti ti-chart-bar" aria-hidden="true" />Combustível — 6 meses</div>
@@ -201,7 +214,6 @@ export default function Dashboard2() {
             </div>
           </div>
 
-          {/* Tabela abastecimentos */}
           <div className="card">
             <div className="section-title"><i className="ti ti-gas-station" aria-hidden="true" />Abastecimentos do mês</div>
             <div className="table-wrap">
@@ -237,7 +249,6 @@ export default function Dashboard2() {
             </div>
           </div>
 
-          {/* Tabela manutenções */}
           <div className="card">
             <div className="section-title"><i className="ti ti-tool" aria-hidden="true" />Manutenções do mês</div>
             <div className="table-wrap">
