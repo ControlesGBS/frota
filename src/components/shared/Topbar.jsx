@@ -6,8 +6,14 @@ export default function Topbar({ name, sub, darkMode, onToggleDark }) {
   return (
     <div className="topbar">
       <div className="topbar-left">
-        <div className="logo-icon">
-          <i className="ti ti-truck" aria-hidden="true" />
+        {/* Moto no lugar do quadrado azul */}
+        <div style={{
+          width: 36, height: 36, borderRadius: 8,
+          overflow: 'hidden', flexShrink: 0,
+          background: '#f0f0ec',
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <img src="/moto.jpg" alt="Moto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
         <div>
           <div className="topbar-name">{name}</div>

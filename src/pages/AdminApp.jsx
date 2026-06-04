@@ -18,8 +18,8 @@ export default function AdminApp() {
   return (
     <div className="app-shell">
       <Topbar
-        name="Administrador"
-        sub="Painel completo da frota"
+        name="Gestão de Frotas"
+        sub="GBS Serviços Empresariais"
         darkMode={dark}
         onToggleDark={toggleDark}
       />

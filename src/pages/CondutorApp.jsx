@@ -31,7 +31,6 @@ export default function CondutorApp() {
         darkMode={dark}
         onToggleDark={toggleDark}
       />
-
       <div className="tabnav">
         {TABS.map(t => (
           <div
@@ -44,7 +43,6 @@ export default function CondutorApp() {
           </div>
         ))}
       </div>
-
       <div className="content">
         {activeTab === 'km'   && <KmTab condutor={condutor} />}
         {activeTab === 'fuel' && <CombustivelTab condutor={condutor} />}

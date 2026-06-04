@@ -30,7 +30,7 @@ export default function LoginPage() {
     <div className="login-wrap">
       <div className="login-box">
 
-        {/* Logo GBS pequeno no topo */}
+        {/* Logo GBS */}
         <div style={{ textAlign: 'center', marginBottom: 20 }}>
           <img
             src="/logotipo_gbs.png"
@@ -40,12 +40,18 @@ export default function LoginPage() {
         </div>
 
         <div className="login-logo">
-          <div className="logo-icon">
-            <i className="ti ti-truck" aria-hidden="true" />
+          {/* Moto no lugar do quadrado azul */}
+          <div style={{
+            width: 44, height: 44, borderRadius: 10,
+            overflow: 'hidden', flexShrink: 0,
+            background: '#f0f0ec',
+            display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}>
+            <img src="/moto.jpg" alt="Moto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
           <div>
-            <div className="login-title">FrotaApp</div>
-            <div className="login-subtitle">Gestão de frotas · GBS Serviços</div>
+            <div className="login-title">Gestão de Frotas</div>
+            <div className="login-subtitle">GBS Serviços Empresariais</div>
           </div>
         </div>
 
