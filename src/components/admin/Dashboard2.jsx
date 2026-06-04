@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { format, subMonths, startOfMonth, endOfMonth } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
+import * as XLSX from 'xlsx'
 
 export default function Dashboard2() {
   const [condutores, setCondutores] = useState([])
@@ -10,6 +11,7 @@ export default function Dashboard2() {
   const [mes, setMes] = useState(new Date().toISOString().slice(0, 7))
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [exportando, setExportando] = useState(false)
 
   useEffect(() => {
     supabase.from('condutores').select('id, nome, marca_veiculo, placa, cnh_vencimento, cnh_categoria, cnh_pontos, is_admin')
@@ -26,8 +28,6 @@ export default function Dashboard2() {
 
   async function loadData() {
     setLoading(true)
-
-    // Calcula início e fim do mês corretamente
     const [ano, mesNum] = mes.split('-').map(Number)
     const ini = `${mes}-01`
     const ultimoDia = new Date(ano, mesNum, 0).getDate()
@@ -45,39 +45,23 @@ export default function Dashboard2() {
     const manut   = r3.data || []
     const vistoria = r4.data || []
 
-    // Histórico 6 meses combustível
     const fuelHistory = await Promise.all(
       Array.from({ length: 6 }, (_, i) => {
         const d = subMonths(new Date(ano, mesNum - 1, 1), 5 - i)
         const s = format(startOfMonth(d), 'yyyy-MM-dd')
         const e = format(endOfMonth(d), 'yyyy-MM-dd')
-        return supabase.from('abastecimentos')
-          .select('valor_total')
-          .eq('condutor_id', selectedId)
-          .gte('data', s)
-          .lte('data', e)
-          .then(({ data: r }) => ({
-            mes: format(d, 'MMM', { locale: ptBR }),
-            valor: (r || []).reduce((acc, x) => acc + (x.valor_total || 0), 0)
-          }))
+        return supabase.from('abastecimentos').select('valor_total').eq('condutor_id', selectedId).gte('data', s).lte('data', e)
+          .then(({ data: r }) => ({ mes: format(d, 'MMM', { locale: ptBR }), valor: (r || []).reduce((acc, x) => acc + (x.valor_total || 0), 0) }))
       })
     )
 
-    // Histórico 6 meses manutenção
     const manutHistory = await Promise.all(
       Array.from({ length: 6 }, (_, i) => {
         const d = subMonths(new Date(ano, mesNum - 1, 1), 5 - i)
         const s = format(startOfMonth(d), 'yyyy-MM-dd')
         const e = format(endOfMonth(d), 'yyyy-MM-dd')
-        return supabase.from('manutencoes')
-          .select('valor_total')
-          .eq('condutor_id', selectedId)
-          .gte('data_servico', s)
-          .lte('data_servico', e)
-          .then(({ data: r }) => ({
-            mes: format(d, 'MMM', { locale: ptBR }),
-            valor: (r || []).reduce((acc, x) => acc + (x.valor_total || 0), 0)
-          }))
+        return supabase.from('manutencoes').select('valor_total').eq('condutor_id', selectedId).gte('data_servico', s).lte('data_servico', e)
+          .then(({ data: r }) => ({ mes: format(d, 'MMM', { locale: ptBR }), valor: (r || []).reduce((acc, x) => acc + (x.valor_total || 0), 0) }))
       })
     )
 
@@ -87,6 +71,111 @@ export default function Dashboard2() {
 
     setData({ abast, oleo, manut, vistoria: vistoria[0] || null, totalAbast, totalOleo, totalManut, fuelHistory, manutHistory })
     setLoading(false)
+  }
+
+  // ── EXPORTAR EXCEL ──────────────────────────────────────
+  async function exportarExcel(tipo) {
+    setExportando(true)
+    const condutor = condutores.find(c => c.id === selectedId)
+    let abastDados, oleoDados, manutDados
+
+    if (tipo === 'mes') {
+      abastDados = data.abast
+      oleoDados  = data.oleo
+      manutDados = data.manut
+    } else {
+      // Histórico completo
+      const [r1, r2, r3] = await Promise.all([
+        supabase.from('abastecimentos').select('*').eq('condutor_id', selectedId).order('data'),
+        supabase.from('trocas_oleo').select('*').eq('condutor_id', selectedId).order('data'),
+        supabase.from('manutencoes').select('*').eq('condutor_id', selectedId).order('data_servico'),
+      ])
+      abastDados = r1.data || []
+      oleoDados  = r2.data || []
+      manutDados = r3.data || []
+    }
+
+    const wb = XLSX.utils.book_new()
+
+    // Aba Resumo
+    const totalA = abastDados.reduce((s, r) => s + (r.valor_total || 0), 0)
+    const totalO = oleoDados.reduce((s, r) => s + (r.valor || 0), 0)
+    const totalM = manutDados.reduce((s, r) => s + (r.valor_total || 0), 0)
+    const resumo = [
+      ['RELATÓRIO DE FROTA — GBS SERVIÇOS'],
+      [],
+      ['Condutor:', condutor?.nome || ''],
+      ['Veículo:', condutor?.marca_veiculo || ''],
+      ['Placa:', condutor?.placa || ''],
+      ['Período:', tipo === 'mes' ? mes : 'Histórico completo'],
+      ['Gerado em:', new Date().toLocaleDateString('pt-BR')],
+      [],
+      ['RESUMO FINANCEIRO'],
+      ['Combustível', `R$ ${totalA.toFixed(2)}`],
+      ['Troca de óleo', `R$ ${totalO.toFixed(2)}`],
+      ['Manutenções', `R$ ${totalM.toFixed(2)}`],
+      ['TOTAL GERAL', `R$ ${(totalA + totalO + totalM).toFixed(2)}`],
+    ]
+    const wsResumo = XLSX.utils.aoa_to_sheet(resumo)
+    wsResumo['!cols'] = [{ wch: 22 }, { wch: 18 }]
+    XLSX.utils.book_append_sheet(wb, wsResumo, 'Resumo')
+
+    // Aba Abastecimentos
+    const abastRows = [
+      ['Data', 'Tipo combustível', 'Litros', 'Preço/L (R$)', 'Total (R$)', 'Km', 'Posto'],
+      ...abastDados.map(r => [
+        r.data ? new Date(r.data + 'T12:00:00').toLocaleDateString('pt-BR') : '',
+        r.tipo_combustivel || '',
+        r.litros || 0,
+        r.preco_litro || 0,
+        r.valor_total || 0,
+        r.km_abastecimento || '',
+        r.posto || '',
+      ])
+    ]
+    const wsAbast = XLSX.utils.aoa_to_sheet(abastRows)
+    wsAbast['!cols'] = [{ wch: 12 }, { wch: 14 }, { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 24 }]
+    XLSX.utils.book_append_sheet(wb, wsAbast, 'Abastecimentos')
+
+    // Aba Trocas de óleo
+    const oleoRows = [
+      ['Data', 'Tipo de óleo', 'Qtd. (L)', 'Valor (R$)', 'Km na troca', 'Próxima troca (km)'],
+      ...oleoDados.map(r => [
+        r.data ? new Date(r.data + 'T12:00:00').toLocaleDateString('pt-BR') : '',
+        r.tipo_oleo || '',
+        r.quantidade_litros || '',
+        r.valor || 0,
+        r.km_troca || '',
+        r.km_proxima || '',
+      ])
+    ]
+    const wsOleo = XLSX.utils.aoa_to_sheet(oleoRows)
+    wsOleo['!cols'] = [{ wch: 12 }, { wch: 18 }, { wch: 10 }, { wch: 12 }, { wch: 14 }, { wch: 18 }]
+    XLSX.utils.book_append_sheet(wb, wsOleo, 'Trocas de óleo')
+
+    // Aba Manutenções
+    const manutRows = [
+      ['Data', 'Reparo', 'Descrição', 'Tipo', 'Oficina', 'Km', 'Valor (R$)', 'Data pgto.', 'Forma pgto.', 'Status'],
+      ...manutDados.map(r => [
+        r.data_servico ? new Date(r.data_servico + 'T12:00:00').toLocaleDateString('pt-BR') : '',
+        r.tipo_reparo || '',
+        r.tipo_reparo === 'Outro' ? (r.descricao_outro || '') : '',
+        r.tipo_manutencao || '',
+        r.oficina || '',
+        r.km_reparo || '',
+        r.valor_total || 0,
+        r.data_pagamento ? new Date(r.data_pagamento + 'T12:00:00').toLocaleDateString('pt-BR') : '',
+        r.forma_pagamento || '',
+        r.status_pagamento || '',
+      ])
+    ]
+    const wsManut = XLSX.utils.aoa_to_sheet(manutRows)
+    wsManut['!cols'] = [{ wch: 12 }, { wch: 16 }, { wch: 22 }, { wch: 12 }, { wch: 20 }, { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }]
+    XLSX.utils.book_append_sheet(wb, wsManut, 'Manutenções')
+
+    const nomeArquivo = `Relatorio_${condutor?.nome?.replace(/\s+/g, '_') || 'condutor'}_${tipo === 'mes' ? mes : 'historico_completo'}.xlsx`
+    XLSX.writeFile(wb, nomeArquivo)
+    setExportando(false)
   }
 
   const condutor = condutores.find(c => c.id === selectedId)
@@ -125,6 +214,28 @@ export default function Dashboard2() {
               ))}
             </select>
           </div>
+        </div>
+
+        {/* Botões de exportação */}
+        <div style={{ display: 'flex', gap: 8, marginTop: 14, justifyContent: 'flex-end' }}>
+          <button
+            className="btn"
+            onClick={() => exportarExcel('mes')}
+            disabled={exportando || !data}
+            style={{ fontSize: 12 }}
+          >
+            <i className="ti ti-file-spreadsheet" aria-hidden="true" />
+            {exportando ? 'Exportando...' : 'Exportar mês (Excel)'}
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={() => exportarExcel('completo')}
+            disabled={exportando}
+            style={{ fontSize: 12 }}
+          >
+            <i className="ti ti-history" aria-hidden="true" />
+            {exportando ? 'Exportando...' : 'Histórico completo (Excel)'}
+          </button>
         </div>
       </div>
 
