@@ -13,7 +13,7 @@ export default function Topbar({ name, sub, darkMode, onToggleDark }) {
           background: '#f0f0ec',
           display: 'flex', alignItems: 'center', justifyContent: 'center'
         }}>
-          <img src="/moto.jpg" alt="Moto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <img src="/Moto.jpg" alt="Moto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
         <div>
           <div className="topbar-name">{name}</div>
