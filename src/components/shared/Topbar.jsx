@@ -20,16 +20,18 @@ export default function Topbar({ name, sub, darkMode, onToggleDark }) {
           onClick={onToggleDark}
           aria-label={darkMode ? 'Modo claro' : 'Modo escuro'}
           title={darkMode ? 'Modo claro' : 'Modo escuro'}
+          style={{ color: 'var(--t1)' }}
         >
-          <i className={`ti ${darkMode ? 'ti-sun' : 'ti-moon'}`} aria-hidden="true" />
+          <i className={`ti ${darkMode ? 'ti-sun' : 'ti-moon'}`} aria-hidden="true" style={{ fontSize: 18 }} />
         </button>
         <button
           className="ib"
           onClick={signOut}
           aria-label="Sair"
           title="Sair"
+          style={{ color: 'var(--t1)' }}
         >
-          <i className="ti ti-logout" aria-hidden="true" />
+          <i className="ti ti-logout" aria-hidden="true" style={{ fontSize: 18 }} />
         </button>
       </div>
     </div>

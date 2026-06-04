@@ -29,6 +29,16 @@ export default function LoginPage() {
   return (
     <div className="login-wrap">
       <div className="login-box">
+
+        {/* Logo GBS pequeno no topo */}
+        <div style={{ textAlign: 'center', marginBottom: 20 }}>
+          <img
+            src="/logotipo_gbs.png"
+            alt="GBS Serviços"
+            style={{ width: 80, height: 'auto', objectFit: 'contain' }}
+          />
+        </div>
+
         <div className="login-logo">
           <div className="logo-icon">
             <i className="ti ti-truck" aria-hidden="true" />
@@ -38,6 +48,7 @@ export default function LoginPage() {
             <div className="login-subtitle">Gestão de frotas · GBS Serviços</div>
           </div>
         </div>
+
         <form onSubmit={handleLogin}>
           <div className="fg">
             <label>Nome</label>
@@ -46,6 +57,7 @@ export default function LoginPage() {
               placeholder="Ex: João Silva"
               value={nome}
               onChange={e => setNome(e.target.value)}
+              autoComplete="username"
               autoCapitalize="words"
             />
             <span className="hint">Digite seu nome completo como cadastrado</span>
