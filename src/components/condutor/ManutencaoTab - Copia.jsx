@@ -12,6 +12,7 @@ const REPAROS = [
   { id: 'Outro',            icon: 'ti-dots' },
 ]
 const TIPOS_MANUT   = ['Preventiva', 'Corretiva', 'Revisão', 'Emergencial']
+const FORMAS_PAGTO  = ['Pix', 'Dinheiro', 'Débito', 'Crédito', 'Boleto', 'A prazo']
 
 export default function ManutencaoTab({ condutor }) {
   const today = new Date().toISOString().split('T')[0]
@@ -24,6 +25,9 @@ export default function ManutencaoTab({ condutor }) {
     km_reparo: '',
     oficina: '',
     valor_total: '',
+    data_pagamento: today,
+    forma_pagamento: 'Pix',
+    pecas_materiais: '',
     observacoes: '',
   })
   const [saving, setSaving] = useState(false)
@@ -45,6 +49,9 @@ export default function ManutencaoTab({ condutor }) {
       km_reparo:        form.km_reparo ? parseInt(form.km_reparo) : null,
       oficina:          form.oficina || null,
       valor_total:      parseFloat(form.valor_total),
+      data_pagamento:   form.data_pagamento || null,
+      forma_pagamento:  form.forma_pagamento,
+      pecas_materiais:  form.pecas_materiais || null,
       observacoes:      form.observacoes || null,
       status_pagamento: 'Pendente',
     })
@@ -54,7 +61,8 @@ export default function ManutencaoTab({ condutor }) {
     toast.success('Ordem de serviço salva!')
     setForm({
       tipo_reparo: '', descricao_outro: '', tipo_manutencao: 'Corretiva',
-      data_servico: today, km_reparo: '', oficina: '', valor_total: '', observacoes: '',
+      data_servico: today, km_reparo: '', oficina: '', valor_total: '',
+      data_pagamento: today, forma_pagamento: 'Pix', pecas_materiais: '', observacoes: '',
     })
   }
 
@@ -127,6 +135,38 @@ export default function ManutencaoTab({ condutor }) {
             <label>Valor total do serviço (R$)</label>
             <input type="number" step="0.01" placeholder="Ex: 380.00" value={form.valor_total} onChange={e => set('valor_total', e.target.value)} />
           </div>
+        </div>
+
+        <div className="g2">
+          <div className="fg">
+            <label>Data de pagamento</label>
+            <input type="date" value={form.data_pagamento} onChange={e => set('data_pagamento', e.target.value)} />
+          </div>
+          <div className="fg">
+            <label>Forma de pagamento</label>
+            <div className="chips" style={{ marginTop: 4 }}>
+              {FORMAS_PAGTO.map(f => (
+                <div
+                  key={f}
+                  className={`chip ${form.forma_pagamento === f ? 'active-blue' : ''}`}
+                  onClick={() => set('forma_pagamento', f)}
+                  style={{ fontSize: 11, padding: '5px 10px' }}
+                >
+                  {f}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="fg">
+          <label>Peças / materiais utilizados</label>
+          <textarea
+            placeholder="Ex: 2x pastilha freio Bosch R$89 · 1x disco TRW R$140..."
+            value={form.pecas_materiais}
+            onChange={e => set('pecas_materiais', e.target.value)}
+            style={{ minHeight: 52 }}
+          />
         </div>
 
         <div className="fg">
