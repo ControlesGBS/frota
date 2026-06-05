@@ -235,12 +235,12 @@ export default function Dashboard2() {
         </div>
 
         {/* Botões de exportação */}
-        <div className="g2" style={{ marginTop: 14 }}>
+        <div style={{ display: 'flex', gap: 8, marginTop: 14, justifyContent: 'flex-end' }}>
           <button
             className="btn"
             onClick={() => exportarExcel('mes')}
             disabled={exportando || !data}
-            style={{ fontSize: 12, width: '100%', justifyContent: 'center' }}
+            style={{ fontSize: 12 }}
           >
             <i className="ti ti-file-spreadsheet" aria-hidden="true" />
             {exportando ? 'Exportando...' : 'Exportar mês (Excel)'}
@@ -249,7 +249,7 @@ export default function Dashboard2() {
             className="btn btn-primary"
             onClick={() => exportarExcel('completo')}
             disabled={exportando}
-            style={{ fontSize: 12, width: '100%', justifyContent: 'center' }}
+            style={{ fontSize: 12 }}
           >
             <i className="ti ti-history" aria-hidden="true" />
             {exportando ? 'Exportando...' : 'Histórico completo (Excel)'}
