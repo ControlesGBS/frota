@@ -249,7 +249,8 @@ function HistoricoKm({ condutorId }) {
       .eq('condutor_id', condutorId)
       .not('km_final', 'is', null)   // só jornadas encerradas
       .order('data', { ascending: false })
-      .limit(7)
+      .order('created_at', { ascending: false })   // desempate: pega o mais recente do dia
+      .limit(1)
       .then(({ data }) => { setRegistros(data || []); setLoading(false) })
   }, [condutorId])
 
