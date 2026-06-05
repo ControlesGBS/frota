@@ -31,17 +31,20 @@ export default function LoginPage() {
     <div className="login-wrap">
       <div className="login-box">
 
+        {/* Logo GBS */}
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <img src="/logotipo_gbs.png" alt="GBS" style={{ width: 72, height: 'auto', objectFit: 'contain' }} />
+          <img src="/logotipo_gbs.png" alt="GBS" style={{ width: 80, height: 'auto', objectFit: 'contain' }} />
         </div>
 
+        {/* Ícone moto + título */}
         <div className="login-logo">
           <div style={{
             width: 44, height: 44, borderRadius: 10,
-            overflow: 'hidden', flexShrink: 0,
-            background: 'var(--bg2)',
+            background: 'var(--blbg)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
           }}>
-            <img src="/moto.jpg" alt="Moto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <i className="ti ti-motorbike" style={{ fontSize: 24, color: 'var(--blue)' }} aria-hidden="true" />
           </div>
           <div>
             <div className="login-title">Gestão de Frotas</div>

@@ -6,12 +6,14 @@ export default function Topbar({ name, sub, darkMode, onToggleDark }) {
   return (
     <div className="topbar">
       <div className="topbar-left">
+        {/* Ícone moto */}
         <div style={{
           width: 36, height: 36, borderRadius: 8,
-          overflow: 'hidden', flexShrink: 0,
-          background: 'var(--bg2)',
+          background: 'var(--blbg)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0,
         }}>
-          <img src="/moto.jpg" alt="Moto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <i className="ti ti-motorbike" style={{ fontSize: 20, color: 'var(--blue)' }} aria-hidden="true" />
         </div>
         <div>
           <div className="topbar-name">{name}</div>
