@@ -124,7 +124,7 @@ export default function ManutencaoTab({ condutor }) {
             <input type="number" placeholder="Ex: 48320" value={form.km_reparo} onChange={e => set('km_reparo', e.target.value)} />
           </div>
           <div className="fg">
-            <label>Valor total do serviço (R$)</label>
+            <label>Valor total do serviço R$</label>
             <input type="number" step="0.01" placeholder="Ex: 380.00" value={form.valor_total} onChange={e => set('valor_total', e.target.value)} />
           </div>
         </div>
