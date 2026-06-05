@@ -33,17 +33,19 @@ export default function Dashboard2() {
     const ultimoDia = new Date(ano, mesNum, 0).getDate()
     const fim = `${mes}-${String(ultimoDia).padStart(2, '0')}`
 
-    const [r1, r2, r3, r4] = await Promise.all([
+    const [r1, r2, r3, r4, r5] = await Promise.all([
       supabase.from('abastecimentos').select('*').eq('condutor_id', selectedId).gte('data', ini).lte('data', fim).order('data'),
       supabase.from('trocas_oleo').select('*').eq('condutor_id', selectedId).gte('data', ini).lte('data', fim).order('data'),
       supabase.from('manutencoes').select('*').eq('condutor_id', selectedId).gte('data_servico', ini).lte('data_servico', fim).order('data_servico'),
       supabase.from('vistorias').select('*').eq('condutor_id', selectedId).order('data_vistoria', { ascending: false }).limit(1),
+      supabase.from('km_diario').select('km_inicial, km_final, data').eq('condutor_id', selectedId).gte('data', ini).lte('data', fim).not('km_final', 'is', null),
     ])
 
-    const abast   = r1.data || []
-    const oleo    = r2.data || []
-    const manut   = r3.data || []
+    const abast    = r1.data || []
+    const oleo     = r2.data || []
+    const manut    = r3.data || []
     const vistoria = r4.data || []
+    const kmRegistros = r5.data || []
 
     const fuelHistory = await Promise.all(
       Array.from({ length: 6 }, (_, i) => {
@@ -68,8 +70,10 @@ export default function Dashboard2() {
     const totalAbast = abast.reduce((s, r) => s + (r.valor_total || 0), 0)
     const totalOleo  = oleo.reduce((s, r) => s + (r.valor || 0), 0)
     const totalManut = manut.reduce((s, r) => s + (r.valor_total || 0), 0)
+    const totalKm    = kmRegistros.reduce((s, r) => s + ((r.km_final || 0) - (r.km_inicial || 0)), 0)
+    const diasRodados = kmRegistros.length
 
-    setData({ abast, oleo, manut, vistoria: vistoria[0] || null, totalAbast, totalOleo, totalManut, fuelHistory, manutHistory })
+    setData({ abast, oleo, manut, vistoria: vistoria[0] || null, totalAbast, totalOleo, totalManut, totalKm, diasRodados, fuelHistory, manutHistory })
     setLoading(false)
   }
 
@@ -95,6 +99,17 @@ export default function Dashboard2() {
       manutDados = r3.data || []
     }
 
+    // Busca km_diario para o período
+    let kmQuery = supabase.from('km_diario').select('*').eq('condutor_id', selectedId).not('km_final', 'is', null).order('data')
+    if (tipo === 'mes') {
+      const [ano, mesNum] = mes.split('-').map(Number)
+      const ini = `${mes}-01`
+      const fim = `${mes}-${String(new Date(ano, mesNum, 0).getDate()).padStart(2,'0')}`
+      kmQuery = kmQuery.gte('data', ini).lte('data', fim)
+    }
+    const { data: kmDados } = await kmQuery
+    const kmTotal = (kmDados || []).reduce((s, r) => s + ((r.km_final || 0) - (r.km_inicial || 0)), 0)
+
     const wb = XLSX.utils.book_new()
 
     // Aba Resumo
@@ -109,6 +124,9 @@ export default function Dashboard2() {
       ['Placa:', condutor?.placa || ''],
       ['Período:', tipo === 'mes' ? mes : 'Histórico completo'],
       ['Gerado em:', new Date().toLocaleDateString('pt-BR')],
+      [],
+      ['HODÔMETRO'],
+      ['Km total rodado', kmTotal],
       [],
       ['RESUMO FINANCEIRO'],
       ['Combustível', `R$ ${totalA.toFixed(2)}`],
@@ -282,7 +300,12 @@ export default function Dashboard2() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 10, marginBottom: 14 }}>
+            <div className="metric">
+              <div className="metric-label"><i className="ti ti-road" aria-hidden="true" />Km rodados</div>
+              <div className="metric-value">{data.totalKm.toLocaleString('pt-BR')}</div>
+              <div className="metric-sub">{data.diasRodados} dia(s) registrado(s)</div>
+            </div>
             <div className="metric">
               <div className="metric-label"><i className="ti ti-gas-station" aria-hidden="true" />Combustível</div>
               <div className="metric-value">R$ {data.totalAbast.toFixed(0)}</div>

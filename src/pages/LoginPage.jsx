@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 export default function LoginPage() {
   const [nome, setNome]         = useState('')
   const [password, setPassword] = useState('')
+  const [showPass, setShowPass] = useState(false)
   const [loading, setLoading]   = useState(false)
 
   async function handleLogin(e) {
@@ -19,7 +20,7 @@ export default function LoginPage() {
       const email = `${nomeLimpo}@frota.interno`
       const { error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) throw error
-    } catch (err) {
+    } catch {
       toast.error('Nome ou senha incorretos')
     } finally {
       setLoading(false)
@@ -30,22 +31,15 @@ export default function LoginPage() {
     <div className="login-wrap">
       <div className="login-box">
 
-        {/* Logo GBS */}
-        <div style={{ textAlign: 'center', marginBottom: 20 }}>
-          <img
-            src="/logotipo_gbs.png"
-            alt="GBS Serviços"
-            style={{ width: 80, height: 'auto', objectFit: 'contain' }}
-          />
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <img src="/logotipo_gbs.png" alt="GBS" style={{ width: 72, height: 'auto', objectFit: 'contain' }} />
         </div>
 
         <div className="login-logo">
-          {/* Moto no lugar do quadrado azul */}
           <div style={{
             width: 44, height: 44, borderRadius: 10,
             overflow: 'hidden', flexShrink: 0,
-            background: '#f0f0ec',
-            display: 'flex', alignItems: 'center', justifyContent: 'center'
+            background: 'var(--bg2)',
           }}>
             <img src="/moto.jpg" alt="Moto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
@@ -68,20 +62,32 @@ export default function LoginPage() {
             />
             <span className="hint">Digite seu nome completo como cadastrado</span>
           </div>
+
           <div className="fg">
             <label>Senha</label>
-            <input
-              type="password"
-              placeholder="••••••"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              autoComplete="current-password"
-            />
+            <div className="input-eye-wrap">
+              <input
+                type={showPass ? 'text' : 'password'}
+                placeholder="••••••"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                className="input-eye-btn"
+                onClick={() => setShowPass(v => !v)}
+                aria-label={showPass ? 'Ocultar senha' : 'Mostrar senha'}
+              >
+                <i className={`ti ${showPass ? 'ti-eye-off' : 'ti-eye'}`} aria-hidden="true" />
+              </button>
+            </div>
           </div>
+
           <button
             type="submit"
-            className="btn btn-primary"
-            style={{ width: '100%', justifyContent: 'center', padding: '10px', marginTop: 4 }}
+            className="btn btn-primary btn-block"
+            style={{ marginTop: 8 }}
             disabled={loading}
           >
             {loading

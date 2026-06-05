@@ -6,12 +6,10 @@ export default function Topbar({ name, sub, darkMode, onToggleDark }) {
   return (
     <div className="topbar">
       <div className="topbar-left">
-        {/* Moto no lugar do quadrado azul */}
         <div style={{
           width: 36, height: 36, borderRadius: 8,
           overflow: 'hidden', flexShrink: 0,
-          background: '#f0f0ec',
-          display: 'flex', alignItems: 'center', justifyContent: 'center'
+          background: 'var(--bg2)',
         }}>
           <img src="/moto.jpg" alt="Moto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
@@ -20,24 +18,23 @@ export default function Topbar({ name, sub, darkMode, onToggleDark }) {
           {sub && <div className="topbar-sub">{sub}</div>}
         </div>
       </div>
+
       <div className="topbar-right">
         <button
-          className={`ib ${darkMode ? 'active' : ''}`}
+          className="ib icon-theme"
           onClick={onToggleDark}
           aria-label={darkMode ? 'Modo claro' : 'Modo escuro'}
           title={darkMode ? 'Modo claro' : 'Modo escuro'}
-          style={{ color: 'var(--t1)' }}
         >
-          <i className={`ti ${darkMode ? 'ti-sun' : 'ti-moon'}`} aria-hidden="true" style={{ fontSize: 18 }} />
+          <i className={`ti ${darkMode ? 'ti-sun' : 'ti-moon'}`} aria-hidden="true" />
         </button>
         <button
-          className="ib"
+          className="ib icon-logout"
           onClick={signOut}
           aria-label="Sair"
           title="Sair"
-          style={{ color: 'var(--t1)' }}
         >
-          <i className="ti ti-logout" aria-hidden="true" style={{ fontSize: 18 }} />
+          <i className="ti ti-logout" aria-hidden="true" />
         </button>
       </div>
     </div>
